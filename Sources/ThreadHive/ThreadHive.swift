@@ -12,7 +12,7 @@ import Foundation
 /// Thread-safe; all members may be called from any thread.
 public enum ThreadHive {
     /// SemVer of the SDK (sent as `X-ThreadHive-SDK` and surfaced in docs).
-    public static let sdkVersion = "1.0.0"
+    public static let sdkVersion = "1.1.0"
 
     private static let lock = NSLock()
     private static var _session: WidgetSession?
@@ -94,6 +94,65 @@ public enum ThreadHive {
     public static func track(_ event: String, properties: [String: JSONValue]? = nil) {
         guard let session = sessionOrNil else { return }
         Task { _ = try? await session.track(event, properties: properties) }
+    }
+
+    // MARK: - Push notifications
+
+    /// Register the APNs device token (from
+    /// `application(_:didRegisterForRemoteNotificationsWithDeviceToken:)`) so
+    /// the backend can deliver agent replies while the app is backgrounded.
+    /// Fire-and-forget; pass `completion` to observe. Re-call after `identify`
+    /// or a fresh login so the token links to the right visitor.
+    public static func registerPushToken(
+        _ deviceToken: Data,
+        environment: APNSEnvironment = .automatic,
+        completion: ((Result<DeviceResponse, Error>) -> Void)? = nil
+    ) {
+        guard let session = sessionOrNil else {
+            completion?(.failure(APIError.notConfigured))
+            return
+        }
+        Task {
+            do {
+                let response = try await session.registerPushToken(deviceToken.threadHiveHexString, environment: environment)
+                completion?(.success(response))
+            } catch {
+                completion?(.failure(error))
+            }
+        }
+    }
+
+    /// `async` variant of `registerPushToken`.
+    @discardableResult
+    public static func registerPushToken(
+        _ deviceToken: Data,
+        environment: APNSEnvironment = .automatic
+    ) async throws -> DeviceResponse {
+        try await session().registerPushToken(deviceToken.threadHiveHexString, environment: environment)
+    }
+
+    /// Stop delivering push to this device (also called automatically by `logout`).
+    public static func unregisterPushToken() {
+        sessionOrNil?.unregisterPushToken()
+    }
+
+    /// The conversation id carried by a ThreadHive push payload, or nil if the
+    /// notification isn't one of ours.
+    public static func conversationID(fromNotification userInfo: [AnyHashable: Any]) -> String? {
+        userInfo["conversation_id"] as? String
+    }
+
+    /// Handle a notification tap. If it's a ThreadHive push, remember its
+    /// conversation so the next `presentChat` / `ThreadHiveChatView` opens that
+    /// thread, and return `true`. Call from your notification-tap handler, then
+    /// present the chat when it returns `true`.
+    @discardableResult
+    public static func handleNotification(userInfo: [AnyHashable: Any]) -> Bool {
+        guard let cid = conversationID(fromNotification: userInfo), let session = sessionOrNil else {
+            return false
+        }
+        session.resumeConversationID = cid
+        return true
     }
 
     // MARK: - Unread badge

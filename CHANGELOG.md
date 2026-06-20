@@ -4,7 +4,21 @@ All notable changes to the ThreadHive iOS SDK are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/) and the project follows
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.0] — 2026-06-20
+
+### Added — Native push notifications
+- `ThreadHive.registerPushToken(_:environment:)` / `unregisterPushToken()` — register the
+  APNs device token so backgrounded/closed apps receive agent replies. Auto-unregistered
+  on `logout()`; re-call after `identify` / a fresh login.
+- `ThreadHive.handleNotification(userInfo:)` + `conversationID(fromNotification:)` —
+  deep-link a notification tap to the conversation in the payload.
+- `WidgetAPI.registerDevice` / `unregisterDevice` (`POST`/`DELETE /v1/widget/{key}/devices`),
+  with `DeviceRegisterRequest` / `DeviceUnregisterRequest` / `DeviceResponse` and an
+  `APNSEnvironment` enum (`.automatic` → sandbox on Debug builds).
+
+Requires each workspace to add its APNs key on Dashboard → Settings → Mobile Push.
+
+## [1.0.0]
 
 ### Added — Milestone 1: networking + models + persistence
 - Typed models for every backend DTO: `WidgetPublicConfig`, `AskRequest`/`AskResponse`

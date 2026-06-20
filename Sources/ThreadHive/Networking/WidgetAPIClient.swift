@@ -131,6 +131,18 @@ public final class WidgetAPIClient: WidgetAPI {
         return try await send(req, as: SeenResponse.self, retry: false)
     }
 
+    @discardableResult
+    public func registerDevice(_ body: DeviceRegisterRequest) async throws -> DeviceResponse {
+        guard let url = endpoints.url("devices") else { throw APIError.invalidURL }
+        return try await send(request(url, method: "POST", json: try encode(body)), as: DeviceResponse.self, retry: true)
+    }
+
+    @discardableResult
+    public func unregisterDevice(_ body: DeviceUnregisterRequest) async throws -> DeviceResponse {
+        guard let url = endpoints.url("devices") else { throw APIError.invalidURL }
+        return try await send(request(url, method: "DELETE", json: try encode(body)), as: DeviceResponse.self, retry: false)
+    }
+
     // MARK: - Request plumbing
 
     private func request(_ url: URL, method: String, json: Data? = nil) -> URLRequest {

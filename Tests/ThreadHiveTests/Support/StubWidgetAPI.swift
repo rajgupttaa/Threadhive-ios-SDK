@@ -13,6 +13,8 @@ final class StubWidgetAPI: WidgetAPI {
     var onIdentify: (IdentifyRequest) async throws -> IdentifyResponse = { _ in IdentifyResponse(ok: true, contactID: "c", verified: false) }
     var onTrack: (TrackRequest) async throws -> TrackResponse = { _ in TrackResponse(ok: true, contactID: "c") }
     var onCSAT: (CSATRequest) async throws -> CSATResponse = { _ in CSATResponse(ok: true, submissionID: "s", conversationID: "c") }
+    var onRegisterDevice: (DeviceRegisterRequest) async throws -> DeviceResponse = { _ in DeviceResponse(ok: true) }
+    var onUnregisterDevice: (DeviceUnregisterRequest) async throws -> DeviceResponse = { _ in DeviceResponse(ok: true) }
 
     func fetchConfig() async throws -> WidgetPublicConfig { try await onConfig() }
     func ask(_ request: AskRequest) async throws -> AskResponse { try await onAsk(request) }
@@ -27,6 +29,8 @@ final class StubWidgetAPI: WidgetAPI {
     func track(_ request: TrackRequest) async throws -> TrackResponse { try await onTrack(request) }
     func submitCSAT(_ request: CSATRequest) async throws -> CSATResponse { try await onCSAT(request) }
     func markSeen(messageID: String, visitorID: String) async throws -> SeenResponse { SeenResponse(ok: true, readAt: nil) }
+    func registerDevice(_ request: DeviceRegisterRequest) async throws -> DeviceResponse { try await onRegisterDevice(request) }
+    func unregisterDevice(_ request: DeviceUnregisterRequest) async throws -> DeviceResponse { try await onUnregisterDevice(request) }
 }
 
 extension ConversationSummary {

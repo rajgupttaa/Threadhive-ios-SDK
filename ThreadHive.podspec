@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "ThreadHive"
-  s.version          = "1.0.0"
+  s.version          = "1.1.0"
   s.summary          = "Native in-app messaging for the ThreadHive support bot + human agents."
   s.description      = <<-DESC
     ThreadHive's native iOS chat SDK: AI Q&A (RAG) with citations, handoff to human

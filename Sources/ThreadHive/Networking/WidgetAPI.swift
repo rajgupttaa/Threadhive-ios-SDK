@@ -48,6 +48,14 @@ public protocol WidgetAPI: AnyObject {
     /// `POST /messages/{id}/seen` — mark an outbound message read.
     @discardableResult
     func markSeen(messageID: String, visitorID: String) async throws -> SeenResponse
+
+    /// `POST /devices` — register an APNs token for background push.
+    @discardableResult
+    func registerDevice(_ request: DeviceRegisterRequest) async throws -> DeviceResponse
+
+    /// `DELETE /devices` — drop a device token (logout / invalidation).
+    @discardableResult
+    func unregisterDevice(_ request: DeviceUnregisterRequest) async throws -> DeviceResponse
 }
 
 public extension WidgetAPI {

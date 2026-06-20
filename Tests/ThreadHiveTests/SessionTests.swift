@@ -86,6 +86,40 @@ final class SessionTests: XCTestCase {
         XCTAssertNil(session.currentIdentity)
         XCTAssertNotEqual(session.visitorID, original, "a fresh anonymous visitor is minted")
     }
+
+    func testRegisterPushTokenForwardsVisitorTokenAndEnvironment() async throws {
+        let api = StubWidgetAPI()
+        var sent: DeviceRegisterRequest?
+        api.onRegisterDevice = { request in
+            sent = request
+            return DeviceResponse(ok: true)
+        }
+        let session = makeSession(api: api)
+        let response = try await session.registerPushToken("abc123", environment: .sandbox)
+
+        XCTAssertTrue(response.ok)
+        XCTAssertEqual(sent?.visitorID, session.visitorID)
+        XCTAssertEqual(sent?.platform, "ios")
+        XCTAssertEqual(sent?.token, "abc123")
+        XCTAssertEqual(sent?.environment, "sandbox")
+    }
+
+    func testLogoutUnregistersPushToken() async throws {
+        let api = StubWidgetAPI()
+        let exp = expectation(description: "unregister called")
+        var unregistered: DeviceUnregisterRequest?
+        api.onUnregisterDevice = { request in
+            unregistered = request
+            exp.fulfill()
+            return DeviceResponse(ok: true)
+        }
+        let session = makeSession(api: api)
+        _ = try await session.registerPushToken("tok-9", environment: .production)
+
+        session.logout()
+        await fulfillment(of: [exp], timeout: 1)
+        XCTAssertEqual(unregistered?.token, "tok-9")
+    }
 }
 
 final class FacadeTests: XCTestCase {
@@ -104,5 +138,20 @@ final class FacadeTests: XCTestCase {
 
         ThreadHive.logout()
         XCTAssertNotEqual(ThreadHive.visitorID, v1, "logout mints a fresh visitor")
+    }
+
+    func testHandleNotificationStoresConversationForTap() {
+        ThreadHive.configure(ThreadHiveConfiguration(
+            widgetKey: "wk_push_\(UUID().uuidString)",
+            apiBaseURL: URL(string: "https://app.example.com/api")!,
+            secureStore: InMemorySecureStore()
+        ))
+
+        XCTAssertEqual(ThreadHive.conversationID(fromNotification: ["conversation_id": "conv-42"]), "conv-42")
+        XCTAssertTrue(ThreadHive.handleNotification(userInfo: ["conversation_id": "conv-42"]))
+        XCTAssertEqual(ThreadHive.sessionOrNil?.resumeConversationID, "conv-42")
+
+        XCTAssertFalse(ThreadHive.handleNotification(userInfo: ["aps": ["alert": "hi"]]),
+                       "non-ThreadHive payload is not handled")
     }
 }

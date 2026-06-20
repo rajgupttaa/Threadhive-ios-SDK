@@ -47,4 +47,9 @@ final class EndpointTests: XCTestCase {
         let resolved = endpoints("https://app.example.com/api").resolveAttachmentURL("https://cdn.example.com/x.png")
         XCTAssertEqual(resolved?.absoluteString, "https://cdn.example.com/x.png")
     }
+
+    func testDevicesURL() {
+        let url = endpoints("https://app.example.com/api").url("devices")
+        XCTAssertEqual(url?.absoluteString, "https://app.example.com/api/v1/widget/wk_1/devices")
+    }
 }

@@ -14,6 +14,7 @@ final class WidgetSession {
     private let conversationDefaults: UserDefaults
     private let lock = NSLock()
     private var identity: Identity?
+    private var lastPushToken: String?
 
     struct Identity: Equatable {
         let userID: String
@@ -62,6 +63,19 @@ final class WidgetSession {
         identity = value
     }
 
+    private func setLastPushToken(_ value: String?) {
+        lock.lock(); defer { lock.unlock() }
+        lastPushToken = value
+    }
+
+    /// Read and clear the stored token in one locked step.
+    private func takeLastPushToken() -> String? {
+        lock.lock(); defer { lock.unlock() }
+        let token = lastPushToken
+        lastPushToken = nil
+        return token
+    }
+
     /// Published config, served from the TTL cache when warm.
     func config(forceRefresh: Bool = false) async throws -> WidgetPublicConfig {
         if !forceRefresh, let cached = configCache.load() { return cached }
@@ -88,9 +102,34 @@ final class WidgetSession {
         try await api.track(TrackRequest(visitorID: visitorID, type: type, name: name, url: url, properties: properties))
     }
 
+    // MARK: - Push registration
+
+    /// Register an APNs token for the current visitor. Stored so `logout()` can
+    /// drop it server-side. `appBundleID` is the host app's bundle id (APNs topic).
+    @discardableResult
+    func registerPushToken(_ token: String, environment: APNSEnvironment) async throws -> DeviceResponse {
+        setLastPushToken(token)
+        let request = DeviceRegisterRequest(
+            visitorID: visitorID,
+            token: token,
+            appBundleID: Bundle.main.bundleIdentifier,
+            environment: environment.rawValue
+        )
+        return try await api.registerDevice(request)
+    }
+
+    /// Drop the last-registered token server-side (fire-and-forget).
+    func unregisterPushToken() {
+        let token = takeLastPushToken()
+        let vid = visitorID
+        let api = self.api
+        Task { _ = try? await api.unregisterDevice(DeviceUnregisterRequest(visitorID: vid, token: token)) }
+    }
+
     /// Clear the linked identity, drop the visitor id (a fresh anonymous one is
     /// minted on next use), and wipe local caches.
     func logout() {
+        unregisterPushToken()
         lock.lock(); identity = nil; lock.unlock()
         visitorStore.clear()
         configCache.clear()
